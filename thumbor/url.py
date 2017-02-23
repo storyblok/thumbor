@@ -13,6 +13,7 @@ import re
 
 class Url(object):
 
+    tenant_id = r'(?:(?:(?P<tenant_id>.+?))/)?'
     unsafe_or_hash = r'(?:(?:(?P<unsafe>unsafe)|(?P<hash>.+?))/)?'
     debug = '(?:(?P<debug>debug)/)?'
     meta = '(?:(?P<meta>meta)/)?'
@@ -31,6 +32,8 @@ class Url(object):
     @classmethod
     def regex(cls, has_unsafe_or_hash=True):
         reg = ['/?']
+
+        reg.append(cls.tenant_id)
 
         if has_unsafe_or_hash:
             reg.append(cls.unsafe_or_hash)

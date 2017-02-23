@@ -14,6 +14,8 @@ from thumbor.handlers import ContextHandler
 from thumbor.context import RequestParameters
 import tornado.gen as gen
 import tornado.web
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
 
 class ImagingHandler(ContextHandler):
@@ -61,16 +63,36 @@ class ImagingHandler(ContextHandler):
 
         url_signature = self.context.request.hash
         if url_signature:
-            signer = self.context.modules.url_signer(self.context.server.security_key)
-
             try:
                 quoted_hash = quote(self.context.request.hash)
             except KeyError:
                 self._error(400, 'Invalid hash: %s' % self.context.request.hash)
                 return
 
-            url_to_validate = url.replace('/%s/' % self.context.request.hash, '') \
-                .replace('/%s/' % quoted_hash, '')
+            hash_and_tenant = self.context.request.tenant_id + '/' + self.context.request.hash
+            quoted_hash_and_tenant = self.context.request.tenant_id + '/' + quoted_hash
+
+            url_to_validate = url.replace('/%s/' % hash_and_tenant, '') \
+                .replace('/%s/' % quoted_hash_and_tenant, '')
+
+            # Get token from dynamodb by id
+            dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
+            table = dynamodb.Table('spaces')
+
+            response = table.get_item(
+                Key={
+                    'id': self.context.request.tenant_id
+                }
+            )
+
+            try:
+                # Check security token from tenant
+                db_security_key = response['Item']['token']
+            except KeyError:
+                self._error(400, 'Could not receive token for: %s' % self.context.request.tenant_id)
+                return
+
+            signer = self.context.modules.url_signer(db_security_key)
 
             valid = signer.validate(unquote(url_signature), url_to_validate)
 

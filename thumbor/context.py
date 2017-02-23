@@ -136,7 +136,8 @@ class RequestParameters:
                  hash=None,
                  accepts_webp=False,
                  request=None,
-                 max_age=None):
+                 max_age=None,
+                 tenant_id=None):
 
         self.debug = bool(debug)
         self.meta = bool(meta)
@@ -195,6 +196,7 @@ class RequestParameters:
         self.accepts_webp = accepts_webp
         self.max_bytes = None
         self.max_age = max_age
+        self.tenant_id = tenant_id
 
         if request:
             self.url = request.path
