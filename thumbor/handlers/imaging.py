@@ -14,6 +14,8 @@ from thumbor.handlers import ContextHandler
 from thumbor.context import RequestParameters
 import tornado.gen as gen
 import tornado.web
+import boto3
+from boto3.dynamodb.conditions import Key, Attr
 
 
 class ImagingHandler(ContextHandler):
@@ -61,7 +63,27 @@ class ImagingHandler(ContextHandler):
 
         url_signature = self.context.request.hash
         if url_signature:
-            signer = self.context.modules.url_signer(self.context.server.security_key)
+            # Get tenant from url f/TENANT_ID/28cd395f21/example.jpg
+            tenant_id = self.context.request.image_url[2:].split('/')[0]
+
+            # Get token from dynamodb by id
+            dynamodb = boto3.resource('dynamodb', region_name='eu-central-1')
+            table = dynamodb.Table('spaces')
+
+            response = table.get_item(
+                Key={
+                    'id': tenant_id
+                }
+            )
+
+            try:
+                # Check security token from tenant
+                tenant_security_id = response['Item']['token']
+            except KeyError:
+                self._error(400, 'Could not receive token for: %s' % tenant_id)
+                return
+
+            signer = self.context.modules.url_signer(tenant_security_id)
 
             try:
                 quoted_hash = quote(self.context.request.hash)

@@ -32,3 +32,4 @@ opencv
 .ropeproject/
 .venv
 docs/_build
+venv
